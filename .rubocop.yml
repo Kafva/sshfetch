@@ -16,3 +16,7 @@ Layout/IndentationStyle:
 Layout/IndentationWidth:
   Enabled: true
   Width: 4
+
+Style/MethodDefParentheses:
+  Enabled: true
+  EnforcedStyle: require_no_parentheses_except_multiline

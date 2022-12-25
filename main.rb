@@ -29,36 +29,36 @@ def main
     options[:ignore] = []
 
     parser = OptionParser.new do |opts|
-      opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
-      opts.on("-tTARGETS", "--targets=TARGETS", 
-              "Comma seperated string of hosts to connect to") do |t|
-                options[:targets] = t.split(',')
-      end
-      opts.on("-iTARGETS", "--ignore=TARGETS", 
-              "Comma seperated string of hosts to ignore") do |t|
-                options[:ignore] = t.split(',')
-      end
+        opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
+        opts.on('-tTARGETS', '--targets=TARGETS',
+                'Comma seperated string of hosts to connect to') do |t|
+            options[:targets] = t.split(',')
+        end
+        opts.on('-iTARGETS', '--ignore=TARGETS',
+                'Comma seperated string of hosts to ignore') do |t|
+            options[:ignore] = t.split(',')
+        end
     end
 
     begin
-      parser.parse!
-    rescue => e
-      puts e.message, parser.help
-      exit 1
+        parser.parse!
+    rescue StandardError => e
+        puts e.message, parser.help
+        exit 1
     end
 
     # 1. Parse ssh_config
     File.readlines("#{Dir.home}/.ssh/config").each do |line|
-        if line.downcase.start_with?('host ')
-            hostname = line.split(' ')[1]
+        next unless line.downcase.start_with?('host ')
 
-            if !options[:ignore].include?(hostname) and 
-                (options[:targets].count == 0 or options[:targets].include?(hostname))
-              # 2. Create one thread per host
-              info hostname
-            end
-            # open_ssh_connection('vel')
-        end
+        hostname = line.split(' ')[1]
+
+        next unless !options[:ignore].include?(hostname) &&
+                    (options[:targets].count.zero? || options[:targets].include?(hostname))
+
+        # 2. Create one thread per host
+        info hostname
+        # open_ssh_connection('vel')
     end
     # 3. Print.
 end
