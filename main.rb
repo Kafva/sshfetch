@@ -23,45 +23,41 @@ def open_ssh_connection host
     end
 end
 
-def main
-    options = {}
-    options[:targets] = []
-    options[:ignore] = []
+#==============================================================================#
+options = {}
+options[:targets] = []
+options[:ignore] = []
 
-    parser = OptionParser.new do |opts|
-        opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
-        opts.on('-tTARGETS', '--targets=TARGETS',
-                'Comma seperated string of hosts to connect to') do |t|
-            options[:targets] = t.split(',')
-        end
-        opts.on('-iTARGETS', '--ignore=TARGETS',
-                'Comma seperated string of hosts to ignore') do |t|
-            options[:ignore] = t.split(',')
-        end
+parser = OptionParser.new do |opts|
+    opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
+    opts.on('-tTARGETS', '--targets=TARGETS',
+            'Comma seperated string of hosts to connect to') do |t|
+        options[:targets] = t.split(',')
     end
-
-    begin
-        parser.parse!
-    rescue StandardError => e
-        puts e.message, parser.help
-        exit 1
+    opts.on('-iTARGETS', '--ignore=TARGETS',
+            'Comma seperated string of hosts to ignore') do |t|
+        options[:ignore] = t.split(',')
     end
-
-    # 1. Parse ssh_config
-    File.readlines("#{Dir.home}/.ssh/config").each do |line|
-        next unless line.downcase.start_with?('host ')
-
-        hostname = line.split(' ')[1]
-
-        next unless !options[:ignore].include?(hostname) &&
-                    (options[:targets].count.zero? || options[:targets].include?(hostname))
-
-        # 2. Create one thread per host
-        info hostname
-        # open_ssh_connection('vel')
-    end
-    # 3. Print.
 end
 
-#==============================================================================#
-main
+begin
+    parser.parse!
+rescue StandardError => e
+    puts e.message, parser.help
+    exit 1
+end
+
+# 1. Parse ssh_config
+File.readlines("#{Dir.home}/.ssh/config").each do |line|
+    next unless line.downcase.start_with?('host ')
+
+    hostname = line.split(' ')[1]
+
+    next if options[:ignore].include?(hostname)
+    next unless options[:targets].count.zero? || options[:targets].include?(hostname)
+
+    # 2. Create one thread per host
+    info hostname
+    open_ssh_connection(hostname)
+end
+# 3. Print.
