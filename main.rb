@@ -2,24 +2,31 @@
 require 'net/ssh'
 require 'optparse'
 
+LINUX_LOGOS = {
+  'arch'    =>  "\e[94m \e[0m",
+  'gentoo'  =>  "\e[37m \e[0m",
+  'debian'  =>  "\e[91m \e[0m",
+  'ubuntu'  =>  "\e[93m \e[0m",
+  'alpine'  =>  "\e[94m \e[0m",
+  'fedora'  =>  "\e[94m \e[0m"
+}.freeze
+
 def info *args
     print "\e[34m>>>\e[0m "
     puts args
 end
 
-def get_sysinfo session
-    session.open_channel do |channel|
-        channel.on_data do |_ch, data|
-            puts "[got data] -> #{data}"
-        end
-        channel.exec 'uname'
-    end
-end
-
 def open_ssh_connection host
-    Net::SSH.start(host) do |session|
-        get_sysinfo session
-        session.loop
+    Net::SSH.start(host) do |ssh|
+        out = ssh.exec! '
+          uname -rms
+          sed -nE "s/^ID=(.*)/\1/p" /etc/os-release 2>/dev/null
+        '
+        uname   = out.split("\n")[0]
+        osinfo  = out.split("\n")[1]
+        logo = LINUX_LOGOS[osinfo]
+
+        puts "#{logo} #{uname}"
     end
 end
 
