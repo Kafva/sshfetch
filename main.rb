@@ -11,6 +11,9 @@ LINUX_LOGOS = {
   'fedora'  =>  "\e[94m \e[0m"
 }.freeze
 
+MACOS_HW = 'system_profiler SPHardwareDataType | 
+              sed -nE "s/.*Model Identifier: (.*)/ \1/p" 2> /dev/null'
+
 def info *args
     print "\e[34m>>>\e[0m "
     puts args
@@ -21,12 +24,22 @@ def open_ssh_connection host
         out = ssh.exec! '
           uname -rms
           sed -nE "s/^ID=(.*)/\1/p" /etc/os-release 2>/dev/null
-        '
-        uname   = out.split("\n")[0]
-        osinfo  = out.split("\n")[1]
-        logo = LINUX_LOGOS[osinfo]
 
-        puts "#{logo} #{uname}"
+        ' + MACOS_HW
+
+        uname             = out.split("\n")[0]
+        linux_os_release  = out.split("\n")[1]
+
+        macos_info        = out.split("\n")[2]
+
+
+        logo = LINUX_LOGOS[linux_os_release]
+
+        if logo.nil? and not macos_info.nil?
+            logo = "\e[97m \e[0m "
+        end
+
+        puts "#{macos_info} #{logo} #{uname}"
     end
 end
 
