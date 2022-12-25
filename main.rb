@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 require 'net/ssh'
-
+require 'optparse'
 
 def info *args
     print "\e[34m>>>\e[0m "
@@ -24,12 +24,39 @@ def open_ssh_connection host
 end
 
 def main
+    options = {}
+    options[:targets] = []
+    options[:ignore] = []
+
+    parser = OptionParser.new do |opts|
+      opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
+      opts.on("-tTARGETS", "--targets=TARGETS", 
+              "Comma seperated string of hosts to connect to") do |t|
+                options[:targets] = t.split(',')
+      end
+      opts.on("-iTARGETS", "--ignore=TARGETS", 
+              "Comma seperated string of hosts to ignore") do |t|
+                options[:ignore] = t.split(',')
+      end
+    end
+
+    begin
+      parser.parse!
+    rescue => e
+      puts e.message, parser.help
+      exit 1
+    end
+
     # 1. Parse ssh_config
     File.readlines("#{Dir.home}/.ssh/config").each do |line|
         if line.downcase.start_with?('host ')
             hostname = line.split(' ')[1]
-            # 2. Create one thread per host
-            info hostname
+
+            if !options[:ignore].include?(hostname) and 
+                (options[:targets].count == 0 or options[:targets].include?(hostname))
+              # 2. Create one thread per host
+              info hostname
+            end
             # open_ssh_connection('vel')
         end
     end
