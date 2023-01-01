@@ -11,16 +11,16 @@ LINUX_LOGOS = {
   'fedora'  =>  "\e[94m \e[0m"
 }.freeze
 
+# Each command should return one line of text (expect '<cmd>: ...' for errors)
 UNAME_CMD = 'uname -rms'
 
-LINUX_OS_CMD = 'sed -nE "s/^ID=(.*)/\1/p" /etc/os-release 2>/dev/null' 
+MACOS_HW_CMD = 'system_profiler SPHardwareDataType'
 
-MACOS_HW_CMD = 'system_profiler SPHardwareDataType 2> /dev/null | 
-              sed -nE "s/.*Model Identifier: (.*)/ \1/p" 2> /dev/null'
+LINUX_OS_CMD = 'grep "^ID=" /etc/os-release' 
 
-LINUX_HW_CMD = 'cat /sys/firmware/devicetree/base/model 2>/dev/null ||
-            cat /sys/devices/virtual/dmi/id/board_{name,version} 2> /dev/null | 
-              tr "\n" " " | sed "s/None//g"'
+# Add newline on success
+LINUX_DEVTREE_CMD = 'cat /sys/firmware/devicetree/base/model && echo'
+LINUX_HW_CMD = 'cat /sys/devices/virtual/dmi/id/board_{name,version} 2>&1 | tr "\n" " " && echo'
 
 def info *args
     print "\e[34m>>>\e[0m "
@@ -29,21 +29,26 @@ end
 
 def open_ssh_connection host
     Net::SSH.start(host) do |ssh|
-        out = ssh.exec! [UNAME_CMD, LINUX_OS_CMD, MACOS_HW_CMD, LINUX_HW_CMD].join(';')
+        out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
+                         LINUX_DEVTREE_CMD, LINUX_HW_CMD, ].join(';')
 
-        uname             = out.split("\n")[0]
-        linux_os_release  = out.split("\n")[1]
+        outlist = out.split("\n")
 
-        macos_info        = out.split("\n")[2]
+        uname                 = outlist[0]
+        macos_info            = outlist[1]
+        linux_os_release      = outlist[2]
+        linux_info            = outlist[3]
+        linux_dev_tree        = outlist[4]
 
+        puts outlist
 
-        logo = LINUX_LOGOS[linux_os_release]
+        #logo = LINUX_LOGOS[linux_os_release]
 
-        if logo.nil? and not macos_info.nil?
-            logo = "\e[97m \e[0m "
-        end
+        #if logo.nil? and not macos_info.nil?
+        #    logo = "\e[97m \e[0m "
+        #end
 
-        puts "#{logo} #{macos_info} #{uname}"
+        #puts "#{logo} #{macos_info} #{uname}"
     end
 end
 
