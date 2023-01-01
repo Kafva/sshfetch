@@ -138,6 +138,8 @@ end
 # 3. Print output
 threads.each_with_index do |thread,i|
   thread.join
-  prefix = i == hsts.length-1 ? PREFIX_END : PREFIX
-  puts prefix + thread[:out]
+  unless thread[:out].nil?
+    prefix = i == hsts.length-1 ? PREFIX_END : PREFIX
+    puts prefix + thread[:out]
+  end
 end
