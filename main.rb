@@ -15,7 +15,6 @@ LINUX_LOGOS = {
 PREFIX     = '├──'.freeze
 PREFIX_END = '└──'.freeze
 
-# Each command should return one line of text (expect '<cmd>: ...' for errors)
 UNAME_CMD = 'uname -rms'.freeze
 
 # !! No trailing newline !!
@@ -23,9 +22,9 @@ MACOS_HW_CMD = 'system_profiler SPHardwareDataType -json -detailLevel mini | tr 
 
 LINUX_OS_CMD = 'grep "^ID=" /etc/os-release'.freeze
 
-# Add newline on success
-LINUX_DEVTREE_CMD = 'cat /sys/firmware/devicetree/base/model && echo'.freeze
-LINUX_HW_CMD = 'cat /sys/devices/virtual/dmi/id/board_{name,version} 2>&1 | tr "\n" " "'.freeze
+LINUX_HW_CMD = 'cat /sys/firmware/devicetree/base/model 2>/dev/null
+                cat /sys/devices/virtual/dmi/id/{sys_vendor,board_{name,version}} 2>/dev/null | 
+                  tr "\n" " "'.freeze
 
 def info *args
     print "\e[34m>>>\e[0m "
@@ -35,7 +34,7 @@ end
 def thread_main host, opts
     Net::SSH.start(host, nil, { :timeout => opts[:timeout] }) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
-                         LINUX_DEVTREE_CMD, LINUX_HW_CMD].join(';')
+                         LINUX_HW_CMD].join(';')
         outlist = out.split("\n")
 
         uname   = outlist[0]
@@ -57,18 +56,15 @@ def thread_main host, opts
         when 'Linux'
             name = outlist[2].split('=')[1]
             logo = LINUX_LOGOS[name]
-            hw_info = if !outlist[3].start_with?('cat: /sys')
-                          outlist[3]
-                      else
-                          outlist[4]
-                      end
+            hw_info = outlist[3]
         else
             return # Silent fail
         end
 
         host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
+        out_parts = [PREFIX_END, logo, hw_info, uname, host_str]
 
-        puts [PREFIX_END, logo, hw_info, uname, host_str].each(&:strip).join(' ')
+        puts out_parts.select{ |s| not s.nil? }.each(&:strip).join(' ').gsub(/\s+/, ' ')
     end
 end
 
@@ -131,7 +127,7 @@ hsts.each do |h|
     threads << Thread.new do 
       begin
         thread_main h, options 
-      rescue Net::SSH::ConnectionTimeout
+      rescue Net::SSH::ConnectionTimeout, Net::SSH::Proxy::ConnectError
         options[:verbose] and info "#{h}: timed out"
         # .. ignore ..
       end
