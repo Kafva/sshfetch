@@ -22,7 +22,7 @@ UNAME_CMD = 'uname -rms'
 # !! No trailing newline !!
 MACOS_HW_CMD = 'system_profiler SPHardwareDataType -json -detailLevel mini | tr -d "\n"'
 
-LINUX_OS_CMD = 'grep "^ID=" /etc/os-release' 
+LINUX_OS_CMD = 'grep "^ID=" /etc/os-release'
 
 # Add newline on success
 LINUX_DEVTREE_CMD = 'cat /sys/firmware/devicetree/base/model && echo'
@@ -33,7 +33,7 @@ def info *args
     puts args
 end
 
-def open_ssh_connection host
+def open_ssh_connection host, show_name
     Net::SSH.start(host) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                          LINUX_DEVTREE_CMD, LINUX_HW_CMD, ].join(';')
@@ -46,8 +46,8 @@ def open_ssh_connection host
         when 'Darwin'
             logo = "\e[97m \e[0m"
             # Exclude output of next command: 'grep: /etc/os-release ...'
-            json_end = out.split('').rindex('}')
-            json_data = JSON.parse(out[0..json_end])
+            json_end = outlist[1].split('').rindex('}')
+            json_data = JSON.parse(outlist[1][0..json_end])
             hw_info = json_data['SPHardwareDataType'][0]['machine_model']
         when 'FreeBSD'
             logo = "\e[91m \e[0m"
@@ -56,15 +56,16 @@ def open_ssh_connection host
         when 'NetBSD'
             logo = "\e[93m \e[0m"
         when 'Linux'
-            name = out.split('=')[1]
+            name = outlist[2].split('=')[1]
             logo = LINUX_LOGOS[name]
-            hw_info  = !outlist[3].start_with?('cat: /sys') ? 
+            hw_info  = !outlist[3].start_with?('cat: /sys') ?
                        outlist[3] : outlist[4]
         else
           return # Silent fail
         end
 
-        puts "#{PREFIX_END} #{logo} #{hw_info} #{uname}"
+        host_str = show_name ? "(\e[97m"+host+"\e[0m)" : ''
+        puts "#{PREFIX_END} #{logo} #{hw_info} #{uname} #{host_str}"
     end
 end
 
@@ -72,7 +73,7 @@ end
 options = {}
 options[:targets] = []
 options[:ignore] = []
-options[:hostnames] = false
+options[:names] = false
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
@@ -84,9 +85,9 @@ parser = OptionParser.new do |opts|
             'Comma seperated string of hosts to ignore') do |t|
         options[:ignore] = t.split(',')
     end
-    opts.on('-H', '--hostnames',
-            'Include hostname in output') do |t|
-        options[:hostnames] = true
+    opts.on('-n', '--names',
+            'Include hostnames in output') do |t|
+        options[:names] = true
     end
 end
 
@@ -114,7 +115,7 @@ end
 
 # 2. Create one thread per host
 hsts.each do |h|
-  threads << Thread.new { open_ssh_connection(h) }
+  threads << Thread.new { open_ssh_connection h, options[:names] }
 end
 
 # 3. Wait
