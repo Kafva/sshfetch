@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'net/ssh'
 require 'optparse'
+require 'json'
 
 LINUX_LOGOS = {
   'arch'    =>  "\e[94m \e[0m",
@@ -14,7 +15,7 @@ LINUX_LOGOS = {
 # Each command should return one line of text (expect '<cmd>: ...' for errors)
 UNAME_CMD = 'uname -rms'
 
-MACOS_HW_CMD = 'system_profiler SPHardwareDataType'
+MACOS_HW_CMD = 'system_profiler SPHardwareDataType -json -detailLevel mini|tr -d "\n" && echo'
 
 LINUX_OS_CMD = 'grep "^ID=" /etc/os-release' 
 
@@ -27,6 +28,18 @@ def info *args
     puts args
 end
 
+def err *args
+    eprint "\e[31m>>>\e[0m "
+    warn args
+end
+
+def parse_macos_info(out)
+  unless out.include?(': command not found: system_profiler')
+      return JSON.parse(out)['SPHardwareDataType'][0]['machine_model']
+  end
+  return ''
+end
+
 def open_ssh_connection host
     Net::SSH.start(host) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
@@ -35,12 +48,12 @@ def open_ssh_connection host
         outlist = out.split("\n")
 
         uname                 = outlist[0]
-        macos_info            = outlist[1]
+        macos_info            = parse_macos_info(outlist[1])
         linux_os_release      = outlist[2]
         linux_info            = outlist[3]
         linux_dev_tree        = outlist[4]
 
-        puts outlist
+        puts macos_info
 
         #logo = LINUX_LOGOS[linux_os_release]
 
