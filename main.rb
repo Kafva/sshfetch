@@ -32,8 +32,8 @@ def info *args
     puts args
 end
 
-def open_ssh_connection host, show_name
-    Net::SSH.start(host) do |ssh|
+def thread_main host, opts
+    Net::SSH.start(host, nil, { :timeout => opts[:timeout] }) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                          LINUX_DEVTREE_CMD, LINUX_HW_CMD].join(';')
         outlist = out.split("\n")
@@ -66,16 +66,20 @@ def open_ssh_connection host, show_name
             return # Silent fail
         end
 
-        host_str = show_name ? "(\e[97m#{host}\e[0m)" : ''
-        puts "#{PREFIX_END} #{logo} #{hw_info} #{uname} #{host_str}"
+        host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
+
+        puts [PREFIX_END, logo, hw_info, uname, host_str].each(&:strip).join(' ')
     end
 end
 
 #==============================================================================#
-options = {}
-options[:targets] = []
-options[:ignore] = []
-options[:names] = false
+options = {
+    :targets => [],
+    :ignore => [],
+    :timeout => 1,
+    :names => false,
+    :verbose => false
+}
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
@@ -87,9 +91,16 @@ parser = OptionParser.new do |opts|
             'Comma seperated string of hosts to ignore') do |t|
         options[:ignore] = t.split(',')
     end
+    opts.on('-wSECONDS', '--wait=SECONDS',
+            "Connection timeout (default #{options[:timeout]} sec)") do |t|
+        options[:timeout] = t.to_i
+    end
     opts.on('-n', '--names',
             'Include hostnames in output') do |_|
         options[:names] = true
+    end
+    opts.on('-v', '--verbose', 'Run verbosely') do |_|
+        options[:verbose] = true
     end
 end
 
@@ -117,7 +128,15 @@ end
 
 # 2. Create one thread per host
 hsts.each do |h|
-    threads << Thread.new { open_ssh_connection h, options[:names] }
+    threads << Thread.new do 
+      begin
+        thread_main h, options 
+      rescue Net::SSH::ConnectionTimeout
+        options[:verbose] and info "#{h}: timed out"
+        # .. ignore ..
+      end
+    end
 end
 
+# 3. Wait...
 threads.each(&:join)
