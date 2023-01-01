@@ -3,6 +3,7 @@ require 'net/ssh'
 require 'optparse'
 require 'json'
 
+
 LINUX_LOGOS = {
   'arch'    =>  "\e[94m \e[0m",
   'gentoo'  =>  "\e[37m \e[0m",
@@ -11,6 +12,9 @@ LINUX_LOGOS = {
   'alpine'  =>  "\e[94m \e[0m",
   'fedora'  =>  "\e[94m \e[0m"
 }.freeze
+
+PREFIX     = '├──'
+PREFIX_END = '└──'
 
 # Each command should return one line of text (expect '<cmd>: ...' for errors)
 UNAME_CMD = 'uname -rms'
@@ -64,7 +68,7 @@ def open_ssh_connection host
             logo = "\e[97m \e[0m"
         end
 
-        puts "#{logo} #{hw_info} #{uname}"
+        puts "#{PREFIX_END} #{logo} #{hw_info} #{uname}"
     end
 end
 
@@ -83,6 +87,7 @@ parser = OptionParser.new do |opts|
             'Comma seperated string of hosts to ignore') do |t|
         options[:ignore] = t.split(',')
     end
+    # TODO show hostname
 end
 
 begin
@@ -91,6 +96,9 @@ rescue StandardError => e
     puts e.message, parser.help
     exit 1
 end
+
+threads = []
+hsts = []
 
 # 1. Parse ssh_config
 File.readlines("#{Dir.home}/.ssh/config").each do |line|
@@ -101,8 +109,13 @@ File.readlines("#{Dir.home}/.ssh/config").each do |line|
     next if options[:ignore].include?(hostname)
     next unless options[:targets].count.zero? || options[:targets].include?(hostname)
 
-    # 2. Create one thread per host
-    info hostname
-    open_ssh_connection(hostname)
+    hsts << hostname
 end
-# 3. Print.
+
+# 2. Create one thread per host
+hsts.each do |h|
+  threads << Thread.new { open_ssh_connection(h) }
+end
+
+# 3. Wait
+threads.each { |t| t.join }
