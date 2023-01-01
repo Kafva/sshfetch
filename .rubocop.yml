@@ -8,6 +8,13 @@ Style/FrozenStringLiteralComment:
 Metrics/PerceivedComplexity:
   Enabled: false
 
+Metrics/MethodLength:
+  Enabled: true
+  Max: 30
+
+Metrics/AbcSize:
+  Enabled: true
+  Max: 22
 
 Layout/IndentationStyle:
   Enabled: true

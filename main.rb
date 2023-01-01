@@ -36,18 +36,18 @@ def thread_main host, opts
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                          LINUX_HW_CMD].join(';')
         outlist = out.split("\n")
-
         uname = outlist[0]
 
         logo, hw_info = logo_and_hw(uname, outlist[1], outlist[2], outlist[3])
-        if logo != ''
-            host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
 
-            logo = opts[:no_icons] ? '' : logo
-            parts = [logo, hw_info, uname, host_str].reject(&:nil?)
+        logo == '' and break
 
-            Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
-        end
+        host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
+        logo = opts[:no_icons] ? '' : logo
+
+        parts = [logo, hw_info, uname, host_str].reject(&:nil?)
+
+        Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
     end
 end
 
