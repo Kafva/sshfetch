@@ -62,9 +62,10 @@ def thread_main host, opts
         end
 
         host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
-        out_parts = [PREFIX_END, logo, hw_info, uname, host_str]
 
-        puts out_parts.select{ |s| not s.nil? }.each(&:strip).join(' ').gsub(/\s+/, ' ')
+        parts = [logo, hw_info, uname, host_str].select{ |s| not s.nil? }
+
+        Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
     end
 end
 
@@ -134,5 +135,9 @@ hsts.each do |h|
     end
 end
 
-# 3. Wait...
-threads.each(&:join)
+# 3. Print output
+threads.each_with_index do |thread,i|
+  thread.join
+  prefix = i == hsts.length-1 ? PREFIX_END : PREFIX
+  puts prefix + thread[:out]
+end
