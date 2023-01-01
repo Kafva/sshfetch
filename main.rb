@@ -23,7 +23,7 @@ MACOS_HW_CMD = 'system_profiler SPHardwareDataType -json -detailLevel mini | tr 
 LINUX_OS_CMD = 'grep "^ID=" /etc/os-release'.freeze
 
 LINUX_HW_CMD = 'cat /sys/firmware/devicetree/base/model 2>/dev/null
-                cat /sys/devices/virtual/dmi/id/{sys_vendor,board_{name,version}} 2>/dev/null | 
+                cat /sys/devices/virtual/dmi/id/{sys_vendor,board_{name,version}} 2>/dev/null |
                   tr "\n" " "'.freeze
 
 def info *args
@@ -32,50 +32,60 @@ def info *args
 end
 
 def thread_main host, opts
-    Net::SSH.start(host, nil, { :timeout => opts[:timeout] }) do |ssh|
+    Net::SSH.start(host, nil, { timeout: opts[:timeout] }) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                          LINUX_HW_CMD].join(';')
         outlist = out.split("\n")
 
-        uname   = outlist[0]
-        osname  = uname.split(' ')[0]
+        uname = outlist[0]
 
-        case osname
-        when 'Darwin'
-            logo = "\e[97m \e[0m"
-            # Exclude output of next command: 'grep: /etc/os-release ...'
-            json_end = outlist[1].split('').rindex('}')
-            json_data = JSON.parse(outlist[1][0..json_end])
-            hw_info = json_data['SPHardwareDataType'][0]['machine_model']
-        when 'FreeBSD'
-            logo = "\e[91m \e[0m"
-        when 'OpenBSD'
-            logo = "\e[93m \e[0m"
-        when 'NetBSD'
-            logo = "\e[93m \e[0m"
-        when 'Linux'
-            name = outlist[2].split('=')[1]
-            logo = LINUX_LOGOS[name]
-            hw_info = outlist[3]
-        else
-            return # Silent fail
+        logo, hw_info = logo_and_hw(uname, outlist[1], outlist[2], outlist[3])
+        if logo != ''
+            host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
+
+            logo = opts[:no_icons] ? '' : logo
+            parts = [logo, hw_info, uname, host_str].reject(&:nil?)
+
+            Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
         end
-
-        host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
-
-        parts = [logo, hw_info, uname, host_str].select{ |s| not s.nil? }
-
-        Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
     end
+end
+
+def logo_and_hw uname, macos_hw, linux_os, linux_hw
+    logo = ''
+    hw_info = ''
+    osname  = uname.split(' ')[0]
+
+    case osname
+    when 'Darwin'
+        logo = "\e[97m \e[0m"
+        # Exclude output of next command: 'grep: /etc/os-release ...'
+        json_end = macos_hw.split('').rindex('}')
+        json_data = JSON.parse(macos_hw[0..json_end])
+        hw_info = json_data['SPHardwareDataType'][0]['machine_model']
+    when 'FreeBSD'
+        logo = "\e[91m \e[0m"
+    when 'OpenBSD'
+        logo = "\e[93m \e[0m"
+    when 'NetBSD'
+        logo = "\e[93m \e[0m"
+    when 'Linux'
+        name = linux_os.split('=')[1]
+        logo = LINUX_LOGOS[name]
+        hw_info = linux_hw
+    end
+
+    [logo, hw_info]
 end
 
 #==============================================================================#
 options = {
-    :targets => [],
-    :ignore => [],
-    :timeout => 1,
-    :names => false,
-    :verbose => false
+    targets: [],
+    ignore: [],
+    timeout: 1,
+    names: false,
+    verbose: false,
+    no_icons: false
 }
 
 parser = OptionParser.new do |opts|
@@ -95,6 +105,10 @@ parser = OptionParser.new do |opts|
     opts.on('-n', '--names',
             'Include hostnames in output') do |_|
         options[:names] = true
+    end
+    opts.on('-p', '--no-icons',
+            'Do not print any Nerdfont icons') do |_|
+        options[:no_icons] = true
     end
     opts.on('-v', '--verbose', 'Run verbosely') do |_|
         options[:verbose] = true
@@ -125,24 +139,22 @@ end
 
 # 2. Create one thread per host
 hsts.each do |h|
-    threads << Thread.new do 
-      begin
-        thread_main h, options 
-      rescue Net::SSH::ConnectionTimeout
+    threads << Thread.new do
+        thread_main h, options
+    rescue Net::SSH::ConnectionTimeout
         options[:verbose] and info "#{h}: timed out"
-      rescue Errno::ENETUNREACH
+    rescue Errno::ENETUNREACH
         options[:verbose] and info "#{h}: network unreachable"
-      rescue Net::SSH::Proxy::ConnectError
+    rescue Net::SSH::Proxy::ConnectError
         options[:verbose] and info "#{h}: proxy connect error"
-      end
     end
 end
 
 # 3. Print output
-threads.each_with_index do |thread,i|
-  thread.join
-  unless thread[:out].nil?
-    prefix = i == hsts.length-1 ? PREFIX_END : PREFIX
-    puts "#{prefix} #{thread[:out]}"
-  end
+threads.each_with_index do |thread, i|
+    thread.join
+    unless thread[:out].nil?
+        prefix = i == hsts.length - 1 ? PREFIX_END : PREFIX
+        puts "#{prefix} #{thread[:out]}"
+    end
 end
