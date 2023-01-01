@@ -33,39 +33,35 @@ def info *args
     puts args
 end
 
-def parse_os_release(out)
-  unless out.start_with?('grep: /etc/os-release: ')
-      name = out.split('=')[1]
-      LINUX_LOGOS[name]
-  end
-end
-
-def parse_macos_info(out)
-  unless out.include?(': command not found: system_profiler')
-      # Exclude output of next command: 'grep: /etc/os-release ...'
-      json_end = out.split('').rindex('}')
-      JSON.parse(out[0..json_end])['SPHardwareDataType'][0]['machine_model']
-  end
-end
-
 def open_ssh_connection host
     Net::SSH.start(host) do |ssh|
         out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                          LINUX_DEVTREE_CMD, LINUX_HW_CMD, ].join(';')
         outlist = out.split("\n")
 
-        # warn outlist
-        # warn '=========='
-
         uname   = outlist[0]
-        hw_info = parse_macos_info(outlist[1])
+        osname  = uname.split(' ')[0]
 
-        if hw_info.nil?
-            logo = parse_os_release(outlist[2])
+        case osname
+        when 'Darwin'
+            logo = "\e[97m \e[0m"
+            # Exclude output of next command: 'grep: /etc/os-release ...'
+            json_end = out.split('').rindex('}')
+            json_data = JSON.parse(out[0..json_end])
+            hw_info = json_data['SPHardwareDataType'][0]['machine_model']
+        when 'FreeBSD'
+            logo = "\e[91m \e[0m"
+        when 'OpenBSD'
+            logo = "\e[93m \e[0m"
+        when 'NetBSD'
+            logo = "\e[93m \e[0m"
+        when 'Linux'
+            name = out.split('=')[1]
+            logo = LINUX_LOGOS[name]
             hw_info  = !outlist[3].start_with?('cat: /sys') ? 
                        outlist[3] : outlist[4]
         else
-            logo = "\e[97m \e[0m"
+          return # Silent fail
         end
 
         puts "#{PREFIX_END} #{logo} #{hw_info} #{uname}"
@@ -76,6 +72,7 @@ end
 options = {}
 options[:targets] = []
 options[:ignore] = []
+options[:hostnames] = false
 
 parser = OptionParser.new do |opts|
     opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
@@ -87,7 +84,10 @@ parser = OptionParser.new do |opts|
             'Comma seperated string of hosts to ignore') do |t|
         options[:ignore] = t.split(',')
     end
-    # TODO show hostname
+    opts.on('-H', '--hostnames',
+            'Include hostname in output') do |t|
+        options[:hostnames] = true
+    end
 end
 
 begin
