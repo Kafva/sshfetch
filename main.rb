@@ -128,9 +128,12 @@ hsts.each do |h|
     threads << Thread.new do 
       begin
         thread_main h, options 
-      rescue Net::SSH::ConnectionTimeout, Net::SSH::Proxy::ConnectError
+      rescue Net::SSH::ConnectionTimeout
         options[:verbose] and info "#{h}: timed out"
-        # .. ignore ..
+      rescue Errno::ENETUNREACH
+        options[:verbose] and info "#{h}: network unreachable"
+      rescue Net::SSH::Proxy::ConnectError
+        options[:verbose] and info "#{h}: proxy connect error"
       end
     end
 end
@@ -140,6 +143,6 @@ threads.each_with_index do |thread,i|
   thread.join
   unless thread[:out].nil?
     prefix = i == hsts.length-1 ? PREFIX_END : PREFIX
-    puts prefix + thread[:out]
+    puts "#{prefix} #{thread[:out]}"
   end
 end
