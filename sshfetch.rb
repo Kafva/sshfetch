@@ -41,9 +41,13 @@ def info *args
 end
 
 def thread_main host, opts
+    !opts[:verbose] and $stderr.reopen('/dev/null', 'w')
+
     Net::SSH.start(host, nil, { timeout: opts[:timeout] }) do |ssh|
-        out = ssh.exec! [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
-                         LINUX_HW_CMD].join(';')
+        ssh_cmd = [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
+                   LINUX_HW_CMD].join(';')
+        out = ssh.exec! ssh_cmd
+
         outlist = out.split("\n")
         uname = outlist[0]
 
@@ -58,6 +62,8 @@ def thread_main host, opts
 
         Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
     end
+
+    !opts[:verbose] and $stderr = STDERR
 end
 
 def logo_and_hw uname, macos_hw, linux_os, linux_hw

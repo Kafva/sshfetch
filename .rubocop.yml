@@ -14,7 +14,7 @@ Metrics/MethodLength:
 
 Metrics/AbcSize:
   Enabled: true
-  Max: 22
+  Max: 28
 
 Layout/IndentationStyle:
   Enabled: true
