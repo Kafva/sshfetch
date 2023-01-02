@@ -3,13 +3,20 @@ require 'net/ssh'
 require 'optparse'
 require 'json'
 
+# https://gist.github.com/natefoo/814c5bf936922dad97ff
 LINUX_LOGOS = {
     'arch' => "\e[94m \e[0m",
+    'archarm' => "\e[94m \e[0m",
     'gentoo' => "\e[37m \e[0m",
     'debian' => "\e[91m \e[0m",
     'ubuntu' => "\e[93m \e[0m",
     'alpine' => "\e[94m \e[0m",
-    'fedora' => "\e[94m \e[0m"
+    'fedora' => "\e[94m \e[0m",
+    'centos' => "\e[0m  \e[0m",
+    'amzn' => "\e[93m \e[0m",
+    'opensuse' => "\e[92m \e[0m",
+    'rhel' => "\e[91m \e[0m",
+    'slackware' => "\e[37m \e[0m"
 }.freeze
 
 PREFIX     = '├──'.freeze
@@ -40,7 +47,7 @@ def thread_main host, opts
 
         logo, hw_info = logo_and_hw(uname, outlist[1], outlist[2], outlist[3])
 
-        logo == '' and break
+        logo == 'NONE' and break
 
         host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
         logo = opts[:no_icons] ? '' : logo
@@ -52,7 +59,7 @@ def thread_main host, opts
 end
 
 def logo_and_hw uname, macos_hw, linux_os, linux_hw
-    logo = ''
+    logo = 'NONE'
     hw_info = ''
     osname  = uname.split(' ')[0]
 
