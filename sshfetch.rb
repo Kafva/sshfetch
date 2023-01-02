@@ -22,6 +22,8 @@ LINUX_LOGOS = {
 PREFIX     = '├──'.freeze
 PREFIX_END = '└──'.freeze
 
+UNKNOWN_OS = 'UNKNOWN'.freeze
+
 UNAME_CMD = 'uname -rms'.freeze
 
 # !! No trailing newline !!
@@ -47,7 +49,7 @@ def thread_main host, opts
 
         logo, hw_info = logo_and_hw(uname, outlist[1], outlist[2], outlist[3])
 
-        logo == 'NONE' and break
+        logo == UNKNOWN_OS and break
 
         host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
         logo = opts[:no_icons] ? '' : logo
@@ -59,7 +61,7 @@ def thread_main host, opts
 end
 
 def logo_and_hw uname, macos_hw, linux_os, linux_hw
-    logo = 'NONE'
+    logo = UNKNOWN_OS
     hw_info = ''
     osname  = uname.split(' ')[0]
 
@@ -78,6 +80,7 @@ def logo_and_hw uname, macos_hw, linux_os, linux_hw
         logo = "\e[93m \e[0m"
     when 'Linux'
         name = linux_os.split('=')[1]
+        # Empty string corresponds to a Linux distro without an icon
         logo = LINUX_LOGOS[name]
         hw_info = linux_hw
     end
