@@ -105,7 +105,7 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-    opts.banner = "usage: #{File.basename($PROGRAM_NAME)} [options]"
+    opts.banner = "usage: #{File.basename($0)} [options]"
     opts.on('-tTARGETS', '--targets=TARGETS',
             'Comma seperated string of hosts to connect to') do |t|
         options[:targets] = t.split(',')
