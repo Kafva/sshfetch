@@ -161,8 +161,8 @@ hsts.each do |h|
         options[:verbose] and info "#{h}: timed out"
     rescue Errno::ENETUNREACH
         options[:verbose] and info "#{h}: network unreachable"
-    rescue Net::SSH::Proxy::ConnectError
-        options[:verbose] and info "#{h}: proxy connect error"
+    rescue StandardError => e
+        options[:verbose] and info "#{h}: #{e}"
     end
 end
 
