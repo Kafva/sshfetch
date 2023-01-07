@@ -2,6 +2,7 @@
 require 'net/ssh'
 require 'optparse'
 require 'json'
+require 'timeout'
 
 # https://gist.github.com/natefoo/814c5bf936922dad97ff
 LINUX_LOGOS = {
@@ -156,13 +157,17 @@ end
 # 2. Create one thread per host
 hsts.each do |h|
     threads << Thread.new do
-        thread_main h, options
-    rescue Net::SSH::ConnectionTimeout
+        Timeout::timeout(options[:timeout] + 1) do
+            thread_main h, options
+            rescue Net::SSH::ConnectionTimeout
+                options[:verbose] and info "#{h}: connection timed out"
+            rescue Errno::ENETUNREACH
+                options[:verbose] and info "#{h}: network unreachable"
+            rescue StandardError => e
+                options[:verbose] and info "#{h}: #{e}"
+        end
+    rescue Timeout::Error
         options[:verbose] and info "#{h}: timed out"
-    rescue Errno::ENETUNREACH
-        options[:verbose] and info "#{h}: network unreachable"
-    rescue StandardError => e
-        options[:verbose] and info "#{h}: #{e}"
     end
 end
 

@@ -7,7 +7,7 @@ host in `~/.ssh/config` by default.
 bundle install
 
 # Install and run
-gem build sshfetch.gemspec && gem install *.gem && 
+gem build sshfetch.gemspec && gem install *.gem &&
     sshfetch --help
 
 # ... or run directly
