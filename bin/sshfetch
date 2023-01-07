@@ -86,9 +86,13 @@ def logo_and_hw uname, macos_hw, linux_os, linux_hw
     when 'NetBSD'
         logo = "\e[93m \e[0m"
     when 'Linux'
-        name = linux_os.split('=')[1]
-        # Empty string corresponds to a Linux distro without an icon
-        logo = LINUX_LOGOS[name]
+        logo = if uname.include? 'Microsoft'
+                   "\e[96m \e[0m"
+               else
+                   # Empty string corresponds to a Linux distro without an icon
+                   name = linux_os.split('=')[1]
+                   LINUX_LOGOS[name]
+               end
         hw_info = linux_hw
     end
 
