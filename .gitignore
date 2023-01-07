@@ -1,3 +1,4 @@
+*.gem
 *.hi
 .vagrant
 .lego
@@ -64,7 +65,6 @@ Cargo.lock
 *.orig
 *.diff
 *.rej
-**/bin/**
 **/obj/**
 **/pkg/**
 **/pkgobj/**
