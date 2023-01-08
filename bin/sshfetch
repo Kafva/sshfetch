@@ -52,7 +52,7 @@ def thread_main host, opts
 
         logo, hw_info = logo_and_hw(uname, outlist[1], outlist[2], outlist[3])
 
-        logo == UNKNOWN_OS and break
+        break if logo == UNKNOWN_OS
 
         host_str = opts[:names] ? "(\e[97m#{host}\e[0m)" : ''
         logo = opts[:no_icons] ? '' : logo
@@ -157,21 +157,21 @@ end
 # 2. Create one thread per host
 hsts.each do |h|
     threads << Thread.new do
-        !options[:verbose] and $stderr.reopen('/dev/null', 'w')
+        $stderr.reopen('/dev/null', 'w') unless options[:verbose]
 
         Timeout.timeout(options[:timeout] + 1) do
             thread_main h, options
         rescue Net::SSH::ConnectionTimeout
-            options[:verbose] and info "#{h}: connection timed out"
+            info "#{h}: connection timed out" if options[:verbose]
         rescue Errno::ENETUNREACH
-            options[:verbose] and info "#{h}: network unreachable"
+            info "#{h}: network unreachable" if options[:verbose]
         rescue StandardError => e
-            options[:verbose] and info "#{h}: #{e}"
+            info "#{h}: #{e}" if options[:verbose]
         end
     rescue Timeout::Error
-        options[:verbose] and info "#{h}: timed out"
+        info "#{h}: timed out" if options[:verbose]
     ensure
-        !options[:verbose] and $stderr = STDERR
+        $stderr = STDERR unless options[:verbose]
     end
 end
 
