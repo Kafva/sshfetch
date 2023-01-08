@@ -42,8 +42,6 @@ def info *args
 end
 
 def thread_main host, opts
-    !opts[:verbose] and $stderr.reopen('/dev/null', 'w')
-
     Net::SSH.start(host, nil, { timeout: opts[:timeout] }) do |ssh|
         ssh_cmd = [UNAME_CMD, MACOS_HW_CMD, LINUX_OS_CMD,
                    LINUX_HW_CMD].join(';')
@@ -63,8 +61,6 @@ def thread_main host, opts
 
         Thread.current[:out] = parts.join(' ').gsub(/\s+/, ' ')
     end
-
-    !opts[:verbose] and $stderr = STDERR
 end
 
 def logo_and_hw uname, macos_hw, linux_os, linux_hw
@@ -161,17 +157,21 @@ end
 # 2. Create one thread per host
 hsts.each do |h|
     threads << Thread.new do
-        Timeout::timeout(options[:timeout] + 1) do
+        !options[:verbose] and $stderr.reopen('/dev/null', 'w')
+
+        Timeout.timeout(options[:timeout] + 1) do
             thread_main h, options
-            rescue Net::SSH::ConnectionTimeout
-                options[:verbose] and info "#{h}: connection timed out"
-            rescue Errno::ENETUNREACH
-                options[:verbose] and info "#{h}: network unreachable"
-            rescue StandardError => e
-                options[:verbose] and info "#{h}: #{e}"
+        rescue Net::SSH::ConnectionTimeout
+            options[:verbose] and info "#{h}: connection timed out"
+        rescue Errno::ENETUNREACH
+            options[:verbose] and info "#{h}: network unreachable"
+        rescue StandardError => e
+            options[:verbose] and info "#{h}: #{e}"
         end
     rescue Timeout::Error
         options[:verbose] and info "#{h}: timed out"
+    ensure
+        !options[:verbose] and $stderr = STDERR
     end
 end
 
